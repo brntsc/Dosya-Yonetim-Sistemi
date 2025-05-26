@@ -1,0 +1,754 @@
+@{
+    ViewData["Title"] = "Dosyalar";
+    Layout = "_AdminLayout";
+}
+
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
+<style>
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-action {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-edit {
+        background-color: #696cff;
+        border: none;
+        color: white;
+    }
+
+    .btn-edit:hover {
+        background-color: #5f61e6;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-delete {
+        background-color: #ff3e1d;
+        border: none;
+        color: white;
+    }
+
+    .btn-delete:hover {
+        background-color: #e63517;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-add {
+        background-color: #71dd37;
+        border: none;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-add:hover {
+        background-color: #65c431;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .table th {
+        font-weight: 600;
+        background-color: #f5f5f9;
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .modal-content {
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    .modal-header {
+        background-color: #f5f5f9;
+        border-radius: 10px 10px 0 0;
+    }
+
+    .form-control:focus {
+        border-color: #696cff;
+        box-shadow: 0 0 0 0.2rem rgba(105, 108, 255, 0.25);
+    }
+
+    .file-preview {
+        max-width: 100px;
+        max-height: 100px;
+        object-fit: contain;
+    }
+</style>
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <h4 class="fw-bold py-3 mb-4">
+        <span class="text-muted fw-light">Dosya Yönetimi /</span> Dosyalar
+    </h4>
+
+    <!-- Dosya Listesi -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Dosya Listesi</h5>
+            <button type="button" class="btn btn-add" data-bs-toggle="modal" data-bs-target="#addFileModal">
+                <i class="bx bx-plus me-1"></i> Yeni Dosya
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive text-nowrap">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Dosya Adı</th>
+                            <th>Kategori</th>
+                            <th>Etiketler</th>
+                            <th>Boyut</th>
+                            <th>Yüklenme Tarihi</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-border-bottom-0" id="fileList">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Dosya Modal -->
+<div class="modal fade" id="addFileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Yeni Dosya Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addFileForm">
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                        <label class="form-label">Dosya</label>
+                            <input type="file" class="form-control" id="file" required />
+                    </div>
+                        <div class="col-12 mb-3">
+                        <label class="form-label">Kategori</label>
+                            <select class="form-select" id="categoryId" required>
+                            <option value="">Kategori Seçin</option>
+                        </select>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Etiketler</label>
+                            <select class="form-select" id="tagIds" multiple>
+                            </select>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Açıklama</label>
+                            <input type="text" class="form-control" id="description" />
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="saveFile()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Düzenleme Modal -->
+<div class="modal fade" id="editFileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Dosya Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editFileForm">
+                    <input type="hidden" id="editFileId" />
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                        <label class="form-label">Dosya Adı</label>
+                            <input type="text" class="form-control" id="editFileName" readonly />
+                    </div>
+                        <div class="col-12 mb-3">
+                        <label class="form-label">Açıklama</label>
+                            <input type="text" class="form-control" id="editDescription" />
+                    </div>
+                        <div class="col-12 mb-3">
+                        <label class="form-label">Kategori</label>
+                            <select class="form-select" id="editCategoryId" required>
+                            <option value="">Kategori Seçin</option>
+                        </select>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Etiketler</label>
+                            <select class="form-select" id="editTagIds" multiple>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="updateFile()">Güncelle</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            loadFiles();
+            loadCategories();
+            loadTags();
+        });
+
+        function loadFiles() {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                console.error('Token bulunamadı');
+                window.location.href = '/Admin/Login';
+                return;
+            }
+
+            console.log('API URL:', '@ViewBag.ApiBaseURL/File');
+            
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/File',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Accept': 'application/json'
+                },
+                beforeSend: function() {
+                    console.log('Dosyalar yükleniyor...');
+                },
+                success: function (response) {
+                    console.log('Raw API Response:', response);
+                    console.log('Response Type:', typeof response);
+                    console.log('Is Array:', Array.isArray(response));
+                    
+                    if (!Array.isArray(response)) {
+                        console.error('API response is not an array:', response);
+                        showError('Dosyalar yüklenirken hata: API yanıtı dizi formatında değil');
+                        return;
+                    }
+
+                    $('#fileList').empty();
+            
+                    if (response.length === 0) {
+                        var row = `
+                            <tr>
+                                <td colspan="7" class="text-center">Henüz dosya bulunmamaktadır.</td>
+                            </tr>
+                        `;
+                        $('#fileList').append(row);
+                        return;
+                    }
+
+                    response.forEach(function(file) {
+                        console.log('Processing file:', file);
+                        var row = `
+                            <tr>
+                                <td>${file.Id || ''}</td>
+                                <td>${file.FileName || ''}</td>
+                                <td>${file.CategoryName || ''}</td>
+                                <td>${file.Tags ? file.Tags.join(', ') : ''}</td>
+                                <td>${formatFileSize(file.FileSize || 0)}</td>
+                                <td>${formatDate(file.UploadDate)}</td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-action btn-edit" onclick="editFile(${file.Id})">
+                                            <i class="bx bx-edit"></i> Düzenle
+                                        </button>
+                                        <button class="btn btn-action btn-delete" onclick="deleteFile(${file.Id})">
+                                            <i class="bx bx-trash"></i> Sil
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                        $('#fileList').append(row);
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.error('AJAX Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText,
+                        statusText: xhr.statusText,
+                        readyState: xhr.readyState
+                    });
+                    
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    
+                    showError('Dosyalar yüklenirken hata: ' + (xhr.responseJSON?.message || error));
+                }
+            });
+        }
+
+        function loadCategories() {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/Admin/Login';
+                return;
+            }
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/Category',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (response) {
+                    console.log('Categories loaded:', response);
+                    
+                    var categorySelect = $('#categoryId');
+                    var editCategorySelect = $('#editCategoryId');
+                    
+                    categorySelect.empty().append('<option value="">Kategori Seçin</option>');
+                    editCategorySelect.empty().append('<option value="">Kategori Seçin</option>');
+                    
+                    // Sadece aktif kategorileri göster
+                    response.filter(category => category.IsActive).forEach(function(category) {
+                        categorySelect.append(`<option value="${category.Id}">${category.Name}</option>`);
+                        editCategorySelect.append(`<option value="${category.Id}">${category.Name}</option>`);
+                    });
+
+                    // Eğer hiç aktif kategori yoksa
+                    if (response.filter(category => category.IsActive).length === 0) {
+                        showError('Aktif kategori bulunamadı. Lütfen önce bir kategori ekleyin.');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Category Load Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText
+                    });
+                    showError('Kategoriler yüklenirken hata: ' + error);
+                }
+            });
+        }
+
+        function loadTags() {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/Admin/Login';
+                return;
+            }
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/FileTag',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (response) {
+                    var tagSelect = $('#tagIds');
+                    var editTagSelect = $('#editTagIds');
+                    
+                    tagSelect.empty();
+                    editTagSelect.empty();
+                    
+                    response.forEach(function(tag) {
+                        tagSelect.append(`<option value="${tag.Id}">${tag.TagName}</option>`);
+                        editTagSelect.append(`<option value="${tag.Id}">${tag.TagName}</option>`);
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.error('Tag Load Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText
+                    });
+                    showError('Etiketler yüklenirken hata: ' + error);
+                }
+            });
+        }
+
+        function editFile(id) {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/Admin/Login';
+                return;
+            }
+
+            console.log('Editing file:', id);
+
+            // Önce kategorileri yükle
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/Category',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                success: function (categories) {
+                    console.log('Categories loaded for edit:', categories);
+                    
+                    // Aktif kategorileri filtrele
+                    var activeCategories = categories.filter(category => category.IsActive);
+                    console.log('Active categories:', activeCategories);
+
+                    if (activeCategories.length === 0) {
+                        showError('Aktif kategori bulunamadı. Lütfen önce bir kategori ekleyin.');
+                        return;
+                    }
+
+                    // Kategori seçimini güncelle
+                    var editCategorySelect = $('#editCategoryId');
+                    editCategorySelect.empty().append('<option value="">Kategori Seçin</option>');
+                    activeCategories.forEach(function(category) {
+                        editCategorySelect.append(`<option value="${category.Id}">${category.Name}</option>`);
+                    });
+
+                    // Dosya bilgilerini yükle
+                    $.ajax({
+                        url: '@ViewBag.ApiBaseURL/File/' + id,
+                        type: 'GET',
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        },
+                        success: function (response) {
+                            console.log('Edit Response:', response);
+                            
+                            // Dosya bilgilerini form alanlarına doldur
+                            $('#editFileId').val(response.Id);
+                            $('#editFileName').val(response.FileName);
+                            $('#editDescription').val(response.Description);
+                            
+                            // Kategori seçimini ayarla
+                            var currentCategoryId = response.CategoryId;
+                            console.log('Current category ID:', currentCategoryId);
+                            
+                            // Mevcut kategori aktif mi kontrol et
+                            var categoryExists = activeCategories.some(cat => cat.Id === currentCategoryId);
+                            if (!categoryExists) {
+                                showError('Dosyanın mevcut kategorisi artık aktif değil. Lütfen yeni bir kategori seçin.');
+                                currentCategoryId = ''; // Kategori seçimini sıfırla
+                            }
+                            
+                            $('#editCategoryId').val(currentCategoryId);
+                            
+                            // Etiketleri ayarla
+                            if (response.FileTags && response.FileTags.length > 0) {
+                                $('#editTagIds').val(response.FileTags.map(tag => tag.Id));
+                            } else {
+                                $('#editTagIds').val([]);
+                            }
+                            
+                            $('#editFileModal').modal('show');
+                        },
+                        error: function (xhr, status, error) {
+                            console.error('Edit Error:', {
+                                status: status,
+                                error: error,
+                                response: xhr.responseText
+                            });
+                            showError('Dosya bilgileri alınırken hata: ' + error);
+                        }
+                    });
+                },
+                error: function (xhr, status, error) {
+                    console.error('Category Load Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText
+                    });
+                    showError('Kategoriler yüklenirken hata: ' + error);
+                }
+            });
+        }
+
+        function updateFile() {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                console.error('Token bulunamadı');
+                window.location.href = '/Admin/Login';
+                return;
+            }
+
+            var id = $('#editFileId').val();
+            var categoryId = parseInt($('#editCategoryId').val());
+            var description = $('#editDescription').val();
+            var fileName = $('#editFileName').val();
+            var tagIds = $('#editTagIds').val() || []; // Çoklu seçim için val() direkt dizi döndürür
+
+            // Validasyon kontrolleri
+            if (!id) {
+                showError('Dosya ID bulunamadı');
+                return;
+            }
+
+            if (!categoryId || isNaN(categoryId) || categoryId <= 0) {
+                showError('Geçerli bir kategori seçilmelidir');
+                return;
+            }
+
+            if (!description || description.trim() === '') {
+                showError('Açıklama alanı zorunludur');
+                return;
+            }
+
+            if (!fileName || fileName.trim() === '') {
+                showError('Dosya adı zorunludur');
+                return;
+            }
+
+            // FormData oluştur
+            var formData = new FormData();
+            formData.append('CategoryId', categoryId);
+            formData.append('Description', description.trim());
+            formData.append('FileName', fileName.trim());
+
+            // TagIds'i dizi olarak gönder
+            if (tagIds && tagIds.length > 0) {
+                tagIds.forEach(function(tagId) {
+                    formData.append('TagIds', tagId);
+                });
+            }
+
+            // Debug için form verilerini logla
+            console.log('Form değerleri:', {
+                id: id,
+                categoryId: categoryId,
+                description: description.trim(),
+                fileName: fileName.trim(),
+                tagIds: tagIds
+            });
+
+            // FormData içeriğini kontrol et
+            for (var pair of formData.entries()) {
+                console.log('FormData içeriği:', pair[0] + ': ' + pair[1]);
+            }
+
+            // API isteği
+                $.ajax({
+                url: '@ViewBag.ApiBaseURL/File/' + id,
+                type: 'PUT',
+                data: formData,
+                processData: false,
+                contentType: false,
+                    headers: {
+                    'Authorization': 'Bearer ' + token
+                    },
+                success: function (response) {
+                    console.log('Update Response:', response);
+                    $('#editFileModal').modal('hide');
+                        loadFiles();
+                    showSuccess('Dosya başarıyla güncellendi');
+                    },
+                error: function (xhr, status, error) {
+                    console.error('Update Error:', xhr);
+                    console.error('Error details:', error);
+                    console.error('Response Text:', xhr.responseText);
+                    console.error('Status:', xhr.status);
+                    console.error('Status Text:', xhr.statusText);
+                    showError('Dosya güncellenirken bir hata oluştu: ' + error);
+                }
+            });
+        }
+
+        function saveFile() {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                console.error('Token bulunamadı');
+                            window.location.href = '/Admin/Login';
+                            return;
+                        }
+
+            var file = $('#file')[0].files[0];
+            var categoryId = parseInt($('#categoryId').val());
+            var tagIds = $('#tagIds').val();
+            var description = $('#description').val() || file.name;
+
+            console.log('Token:', token);
+            console.log('File details:', {
+                name: file?.name,
+                size: file?.size,
+                type: file?.type
+            });
+
+            if (!file) {
+                showError('Dosya seçilmedi');
+                return;
+            }
+
+            if (!categoryId || isNaN(categoryId)) {
+                showError('Kategori seçimi zorunludur');
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('File', file);
+            formData.append('CategoryId', categoryId);
+            formData.append('FileName', file.name);
+            formData.append('Description', description);
+            
+            if (tagIds && tagIds.length > 0) {
+                tagIds.forEach(function(tagId) {
+                    formData.append('TagIds', tagId);
+                });
+            }
+
+            console.log('Sending file data:', {
+                fileName: file.name,
+                categoryId: categoryId,
+                tagIds: tagIds,
+                description: description
+            });
+
+            // FormData içeriğini kontrol et
+            for (var pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
+            }
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/File',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Accept': 'application/json'
+                },
+                success: function (response) {
+                    console.log('Save Response:', response);
+                    $('#addFileModal').modal('hide');
+                    $('#addFileForm')[0].reset();
+                    loadFiles();
+                    showSuccess('Dosya başarıyla eklendi');
+                },
+                error: function (xhr, status, error) {
+                    console.error('Save Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText,
+                        statusText: xhr.statusText,
+                        readyState: xhr.readyState,
+                        responseJSON: xhr.responseJSON
+                    });
+                    
+                    if (xhr.status === 401) {
+                        console.error('Token geçersiz veya süresi dolmuş');
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    
+                    var errorMessage = xhr.responseJSON?.message || error;
+                    console.error('Error details:', errorMessage);
+                    showError('Dosya eklenirken hata: ' + errorMessage);
+                }
+            });
+        }
+
+        function deleteFile(id) {
+            if (!id) {
+                console.error('Invalid file id:', id);
+                showError('Geçersiz dosya ID');
+                return;
+            }
+
+            var token = localStorage.getItem('token');
+            if (!token) {
+                console.error('Token bulunamadı');
+                window.location.href = '/Admin/Login';
+                return;
+            }
+
+            if (!confirm('Bu dosyayı silmek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            console.log('Deleting file:', id);
+            console.log('Using token:', token);
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/File/' + id,
+                type: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Accept': 'application/json'
+                },
+                beforeSend: function() {
+                    console.log('Sending DELETE request to:', '@ViewBag.ApiBaseURL/File/' + id);
+                    console.log('Request headers:', {
+                        'Authorization': 'Bearer ' + token,
+                        'Accept': 'application/json'
+                    });
+                },
+                success: function (response) {
+                    console.log('Delete Response:', response);
+                    loadFiles();
+                    showSuccess('Dosya başarıyla silindi');
+                },
+                error: function (xhr, status, error) {
+                    console.error('Delete Error:', {
+                        status: status,
+                        error: error,
+                        response: xhr.responseText,
+                        statusText: xhr.statusText,
+                        readyState: xhr.readyState,
+                        responseJSON: xhr.responseJSON
+                    });
+                    
+                    if (xhr.status === 401) {
+                        console.error('Token geçersiz veya süresi dolmuş');
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    
+                    var errorMessage = xhr.responseJSON?.message || error;
+                    console.error('Error details:', errorMessage);
+                    showError('Dosya silinirken hata: ' + errorMessage);
+                }
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleString('tr-TR');
+        }
+
+        function showSuccess(message) {
+            toastr.success(message);
+        }
+
+        function showError(message) {
+            toastr.error(message);
+        }
+    </script>
+} 

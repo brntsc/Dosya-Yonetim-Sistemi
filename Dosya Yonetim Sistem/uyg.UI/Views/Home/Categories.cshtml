@@ -1,0 +1,277 @@
+﻿@{
+    ViewData["Title"] = "Kategoriler";
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Kategoriler</h3>
+            </div>
+            <div class="card-body">
+                <table class="table" id="tbCategoryList">
+                    <thead>
+                        <tr>
+                            <th>Kategori Adı</th>
+                            <th>Açıklama</th>
+                            <th>Dosya Sayısı</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card-footer"></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><h4>Kategori Ekle - Güncelle</h4></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Kategori Adı</label>
+                    <input type="hidden" class="form-control" id="txtId" />
+                    <input type="text" class="form-control" id="txtName" />
+                </div>
+                <div class="mb-3">
+                    <label>Açıklama</label>
+                    <textarea class="form-control" id="txtDescription" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <input type="checkbox" class="form-check-inline" id="cbIsActive" />
+                    <label>Aktif</label>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-circle" title="Kaydet" id="btnSave"><i class="fa fa-save"></i></button>
+                    <button class="btn btn-secondary btn-circle" title="Vazgeç" id="btnCancel"><i class="fa fa-arrow-left"></i></button>
+                    <button class="btn btn-warning btn-circle" title="Düzenle" id="btnEdit"><i class="fa fa-edit"></i></button>
+                    <button class="btn btn-danger btn-circle" title="Sil" id="btnDelete"><i class="fa fa-trash"></i></button>
+                    <div class="alert mt-3" id="divResult"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            var apiBaseUrl = "@ViewBag.ApiBaseURL";
+            if (localStorage.getItem("token") == "" || localStorage.getItem("token") == null) {
+                location.href = "/Login";
+                return false;
+            }
+            var token = localStorage.getItem("token");
+
+            GetCategoryList();
+            $("#btnCancel").hide();
+            $("#btnEdit").hide();
+            $("#btnDelete").hide();
+
+            function GetCategoryList() {
+                $.ajax({
+                    url: apiBaseUrl + "/Category",
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    success: function (d) {
+                        CategoryToTable(d);
+                    },
+                    error: function (d) {
+                        console.error("Kategoriler yüklenirken hata:", d);
+                    }
+                });
+            }
+
+            function CategoryToTable(data) {
+                $("#tbCategoryList tbody").empty();
+                var row = "";
+                $.each(data, function (i, item) {
+                    var bg = item.isActive == true ? 'bg-success' : 'bg-danger';
+                    var status = item.isActive == true ? 'Aktif' : 'Pasif';
+                    row += "<tr>";
+                    row += "<td><a href='/Files?catId=" + item.id + "'>" + item.name + "</a></td>";
+                    row += "<td>" + item.description + "</td>";
+                    row += "<td>" + item.productCount + "</td>";
+                    row += "<td><span class='text-white badge " + bg + "'>" + status + "</span></td>";
+                    row += '<td><button class="btn btn-warning btn-circle btnEdit" data-id="' + item.id + '"><i class="fa fa-edit"></i></button></td>';
+                    row += "</tr>";
+                });
+                $("#tbCategoryList tbody").append(row);
+            }
+
+            $("#btnSave").click(function () {
+                if ($("#txtName").val() == "" || $("#txtName").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Kategori Adı Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var category = {
+                    name: $("#txtName").val(),
+                    description: $("#txtDescription").val(),
+                    isActive: $("#cbIsActive").is(":checked")
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/Category",
+                    type: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(category),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetCategoryList();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Kategori kaydedilirken hata:", d);
+                    }
+                });
+            });
+
+            $(document).on("click", ".btnEdit", function () {
+                var id = $(this).attr("data-id");
+                $.ajax({
+                    url: apiBaseUrl + "/Category/" + id,
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    contentType: "application/json",
+                    success: function (d) {
+                        $("#btnSave").hide();
+                        $("#btnCancel").show();
+                        $("#btnEdit").show();
+                        $("#btnDelete").show();
+                        $("#txtId").val(id);
+                        $("#txtName").val(d.name);
+                        $("#txtDescription").val(d.description);
+                        $("#cbIsActive").prop("checked", d.isActive);
+                    },
+                    error: function (d) {
+                        console.error("Kategori bilgileri alınamadı:", d);
+                    }
+                });
+            });
+
+            $("#btnCancel").click(function () {
+                $("#btnCancel").hide();
+                $("#btnEdit").hide();
+                $("#btnDelete").hide();
+                $("#btnSave").show();
+                $("#txtName").val("");
+                $("#txtDescription").val("");
+                $("#txtId").val("");
+                $("#cbIsActive").prop("checked", false);
+            });
+
+            $("#btnEdit").click(function () {
+                if ($("#txtName").val() == "" || $("#txtName").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Kategori Adı Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var category = {
+                    id: $("#txtId").val(),
+                    name: $("#txtName").val(),
+                    description: $("#txtDescription").val(),
+                    isActive: $("#cbIsActive").is(":checked")
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/Category",
+                    type: "PUT",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(category),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetCategoryList();
+                            $("#btnCancel").click();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Kategori güncellenirken hata:", d);
+                    }
+                });
+            });
+
+            $("#btnDelete").click(function () {
+                var id = $("#txtId").val();
+                $.ajax({
+                    url: apiBaseUrl + "/Category/" + id,
+                    type: "DELETE",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetCategoryList();
+                            $("#btnCancel").click();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Kategori silinirken hata:", d);
+                    }
+                });
+            });
+        });
+    </script>
+}
+

@@ -1,0 +1,365 @@
+@{
+    ViewData["Title"] = "Dosyalar";
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Dosyalar</h3>
+            </div>
+            <div class="card-body">
+                <h4><a href="/Categories">Kategoriler</a> | <span id="catName"></span></h4>
+                <table class="table" id="tbFileList">
+                    <thead>
+                        <tr>
+                            <th>Dosya Adı</th>
+                            <th>Kategori</th>
+                            <th>Yükleyen</th>
+                            <th>Yüklenme Tarihi</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card-footer"></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><h4>Dosya Ekle - Güncelle</h4></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Dosya Adı</label>
+                    <input type="hidden" class="form-control" id="txtId" />
+                    <input type="text" class="form-control" id="txtFileName" />
+                </div>
+                <div class="mb-3">
+                    <label>Kategori</label>
+                    <select class="form-control" id="cbCategoryId">
+                        <option>Seçiniz</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label>Açıklama</label>
+                    <textarea class="form-control" id="txtDescription" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label>Etiketler</label>
+                    <select class="form-control" id="cbTags" multiple>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <input type="checkbox" class="form-check-inline" id="cbIsActive" />
+                    <label>Aktif</label>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-circle" title="Kaydet" id="btnSave"><i class="fa fa-save"></i></button>
+                    <button class="btn btn-secondary btn-circle" title="Vazgeç" id="btnCancel"><i class="fa fa-arrow-left"></i></button>
+                    <button class="btn btn-warning btn-circle" title="Düzenle" id="btnEdit"><i class="fa fa-edit"></i></button>
+                    <button class="btn btn-danger btn-circle" title="Sil" id="btnDelete"><i class="fa fa-trash"></i></button>
+                    <div class="alert mt-3" id="divResult"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            var apiBaseUrl = "@ViewBag.ApiBaseURL";
+            var fileId = 0;
+            if (localStorage.getItem("token") == "" || localStorage.getItem("token") == null) {
+                location.href = "/Login";
+                return false;
+            }
+            var token = localStorage.getItem("token");
+
+            var catId = "@ViewBag.CatId";
+            GetCategoryById();
+            GetFileList();
+            GetCategoryList();
+            GetTagList();
+            $("#btnCancel").hide();
+            $("#btnEdit").hide();
+            $("#btnDelete").hide();
+
+            function GetFileList() {
+                $.ajax({
+                    url: apiBaseUrl + "/File",
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    success: function (d) {
+                        FileToTable(d);
+                    },
+                    error: function (d) {
+                        console.error("Dosyalar yüklenirken hata:", d);
+                    }
+                });
+            }
+
+            function GetCategoryById() {
+                $.ajax({
+                    url: apiBaseUrl + "/Category/" + catId,
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    success: function (d) {
+                        $("#catName").html(d.name);
+                    },
+                    error: function (d) {
+                        console.error("Kategori bilgisi alınamadı:", d);
+                    }
+                });
+            }
+
+            function GetCategoryList() {
+                $.ajax({
+                    url: apiBaseUrl + "/Category",
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    success: function (d) {
+                        $("#cbCategoryId").empty();
+                        var options = "";
+                        $.each(d, function (i, item) {
+                            if (item.id == catId) {
+                                options += '<option value="' + item.id + '" selected>' + item.name + '</option>';
+                            } else {
+                                options += '<option value="' + item.id + '">' + item.name + '</option>';
+                            }
+                        });
+                        $("#cbCategoryId").append(options);
+                    },
+                    error: function (d) {
+                        console.error("Kategoriler yüklenirken hata:", d);
+                    }
+                });
+            }
+
+            function GetTagList() {
+                $.ajax({
+                    url: apiBaseUrl + "/FileTag",
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    success: function (d) {
+                        $("#cbTags").empty();
+                        $.each(d, function (i, item) {
+                            $("#cbTags").append('<option value="' + item.id + '">' + item.tagName + '</option>');
+                        });
+                    },
+                    error: function (d) {
+                        console.error("Etiketler yüklenirken hata:", d);
+                    }
+                });
+            }
+
+            function FileToTable(data) {
+                $("#tbFileList tbody").empty();
+                var row = "";
+                $.each(data, function (i, item) {
+                    var bg = item.isActive == true ? 'bg-success' : 'bg-danger';
+                    var status = item.isActive == true ? 'Aktif' : 'Pasif';
+                    row += "<tr>";
+                    row += "<td>" + item.fileName + "</td>";
+                    row += "<td>" + (item.category ? item.category.name : '-') + "</td>";
+                    row += "<td>" + item.uploadedBy + "</td>";
+                    row += "<td>" + new Date(item.uploadDate).toLocaleDateString() + "</td>";
+                    row += "<td><span class='text-white badge " + bg + "'>" + status + "</span></td>";
+                    row += '<td><button class="btn btn-warning btn-circle btnEdit" data-id="' + item.id + '"><i class="fa fa-edit"></i></button></td>';
+                    row += "</tr>";
+                });
+                $("#tbFileList tbody").append(row);
+            }
+
+            $("#btnSave").click(function () {
+                if ($("#txtFileName").val() == "" || $("#txtFileName").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Dosya Adı Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var file = {
+                    fileName: $("#txtFileName").val(),
+                    description: $("#txtDescription").val(),
+                    categoryId: $("#cbCategoryId").val(),
+                    isActive: $("#cbIsActive").is(":checked"),
+                    fileTags: $("#cbTags").val()
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/File",
+                    type: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(file),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetFileList();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Dosya kaydedilirken hata:", d);
+                    }
+                });
+            });
+
+            $(document).on("click", ".btnEdit", function () {
+                var id = $(this).attr("data-id");
+                $.ajax({
+                    url: apiBaseUrl + "/File/" + id,
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    contentType: "application/json",
+                    success: function (d) {
+                        $("#btnSave").hide();
+                        $("#btnCancel").show();
+                        $("#btnEdit").show();
+                        $("#btnDelete").show();
+                        $("#txtId").val(id);
+                        $("#txtFileName").val(d.fileName);
+                        $("#txtDescription").val(d.description);
+                        $("#cbCategoryId").val(d.categoryId);
+                        $("#cbIsActive").prop("checked", d.isActive);
+                        if (d.fileTags) {
+                            $("#cbTags").val(d.fileTags.map(t => t.id));
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Dosya bilgileri alınamadı:", d);
+                    }
+                });
+            });
+
+            $("#btnCancel").click(function () {
+                $("#btnCancel").hide();
+                $("#btnEdit").hide();
+                $("#btnDelete").hide();
+                $("#btnSave").show();
+                $("#txtFileName").val("");
+                $("#txtDescription").val("");
+                $("#cbCategoryId").val(catId);
+                $("#txtId").val("");
+                $("#cbIsActive").prop("checked", false);
+                $("#cbTags").val([]);
+            });
+
+            $("#btnEdit").click(function () {
+                if ($("#txtFileName").val() == "" || $("#txtFileName").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Dosya Adı Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var file = {
+                    id: $("#txtId").val(),
+                    fileName: $("#txtFileName").val(),
+                    description: $("#txtDescription").val(),
+                    categoryId: $("#cbCategoryId").val(),
+                    isActive: $("#cbIsActive").is(":checked"),
+                    fileTags: $("#cbTags").val()
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/File",
+                    type: "PUT",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(file),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetFileList();
+                            $("#btnCancel").click();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Dosya güncellenirken hata:", d);
+                    }
+                });
+            });
+
+            $("#btnDelete").click(function () {
+                var id = $("#txtId").val();
+                $.ajax({
+                    url: apiBaseUrl + "/File/" + id,
+                    type: "DELETE",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetFileList();
+                            $("#btnCancel").click();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Dosya silinirken hata:", d);
+                    }
+                });
+            });
+        });
+    </script>
+} 

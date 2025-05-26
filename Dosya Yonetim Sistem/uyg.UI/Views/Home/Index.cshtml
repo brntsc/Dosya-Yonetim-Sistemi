@@ -1,0 +1,157 @@
+﻿@{
+    ViewData["Title"] = "Ana Sayfa";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Kategoriler -->
+        <div class="col-md-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-folder me-2"></i>Kategoriler
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="categoryList">
+                        <!-- Kategoriler AJAX ile yüklenecek -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dosyalar -->
+        <div class="col-md-9">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file me-2"></i>Dosyalar
+                    </h5>
+                    <div>
+                        <a href="/Admin/Login" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-sign-in-alt me-1"></i> Admin Girişi
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle" id="fileList">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Dosya Adı</th>
+                                    <th>Kategori</th>
+                                    <th>Yükleyen</th>
+                                    <th>Yüklenme Tarihi</th>
+                                    <th class="text-center">İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dosyalar AJAX ile yüklenecek -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            loadCategories();
+            loadFiles();
+
+            // Kategori seçildiğinde
+            $(document).on('click', '.category-item', function () {
+                $('.category-item').removeClass('active');
+                $(this).addClass('active');
+                var categoryId = $(this).data('id');
+                loadFiles(categoryId);
+            });
+        });
+
+        function loadCategories() {
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/Category',
+                type: 'GET',
+                success: function (response) {
+                    console.log('Ham kategori verisi:', response);
+                    var html = '';
+                    if (response && response.length > 0) {
+                        response.forEach(function (category) {
+                            console.log('İşlenen kategori:', category);
+                            html += `
+                                <a href="javascript:void(0)" class="list-group-item list-group-item-action category-item d-flex justify-content-between align-items-center" data-id="${category.Id}">
+                                    <span><i class="fas fa-folder-open me-2"></i>${category.Name}</span>
+                                    <span class="badge bg-primary rounded-pill">${category.ProductCount || 0}</span>
+                                </a>`;
+                        });
+                    } else {
+                        html = '<div class="list-group-item text-center text-muted">Kategori bulunamadı</div>';
+                    }
+                    $('#categoryList').html(html);
+                },
+                error: function (xhr) {
+                    console.error('Kategori yükleme hatası:', xhr.responseText);
+                    $('#categoryList').html('<div class="list-group-item text-center text-danger">Kategoriler yüklenirken bir hata oluştu</div>');
+                }
+            });
+        }
+
+        function loadFiles(categoryId) {
+            var url = '@ViewBag.ApiBaseURL/File';
+            if (categoryId) {
+                url += '/GetByCategory/' + categoryId;
+            }
+
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function (response) {
+                    console.log('Ham dosya verisi:', response);
+                    var html = '';
+                    if (response && response.length > 0) {
+                        response.forEach(function (file) {
+                            console.log('İşlenen dosya:', file);
+                            html += `
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-file me-2"></i>
+                                        ${file.FileName}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-folder me-1"></i>${file.CategoryName}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-user me-2"></i>${file.UserName}
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-calendar me-2"></i>
+                                        <span title="${file.CreatedDate}">${FormatDate(file.CreatedDate)}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        ${file.FilePath ? `
+                                            <a href="@ViewBag.ApiBaseURL/Files/${file.FilePath}" class="btn btn-sm btn-primary" target="_blank">
+                                                <i class="fas fa-download me-1"></i> İndir
+                                            </a>
+                                        ` : ''}
+                                    </td>
+                                </tr>`;
+                        });
+                    } else {
+                        html = '<tr><td colspan="5" class="text-center text-muted">Dosya bulunamadı</td></tr>';
+                    }
+                    $('#fileList tbody').html(html);
+                },
+                error: function (xhr) {
+                    console.error('Dosya yükleme hatası:', xhr.responseText);
+                    $('#fileList tbody').html('<tr><td colspan="5" class="text-center text-danger">Dosyalar yüklenirken bir hata oluştu</td></tr>');
+                }
+            });
+        }
+    </script>
+}

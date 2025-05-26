@@ -1,0 +1,299 @@
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_AdminLayout";
+}
+
+<!-- Toastr CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
+<div class="container-xxl flex-grow-1 container-p-y">
+    <div class="row">
+        <!-- İstatistikler -->
+        <div class="col-lg-4 col-md-4 order-1">
+            <div class="row">
+                <div class="col-lg-6 col-md-12 col-6 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="card-title d-flex align-items-start justify-content-between">
+                                <div class="avatar flex-shrink-0">
+                                    <i class="bx bx-file text-primary" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <span class="fw-medium d-block mb-1">Toplam Dosya</span>
+                            <h3 class="card-title mb-2" id="totalFiles">0</h3>
+                            <small class="text-success fw-medium">
+                                <i class='bx bx-up-arrow-alt'></i> Son 30 günde yüklenen: <span id="recentFilesCount">0</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-12 col-6 mb-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="card-title d-flex align-items-start justify-content-between">
+                                <div class="avatar flex-shrink-0">
+                                    <i class="bx bx-category text-success" style="font-size: 2rem;"></i>
+                                </div>
+                            </div>
+                            <span class="fw-medium d-block mb-1">Toplam Kategori</span>
+                            <h3 class="card-title mb-2" id="totalCategories">0</h3>
+                            <small class="text-success fw-medium">
+                                <i class='bx bx-up-arrow-alt'></i> Aktif Kategori: <span id="activeCategoriesCount">0</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Son Yüklenen Dosyalar -->
+        <div class="col-12 col-lg-8 order-2 order-md-3 order-lg-2 mb-4">
+            <div class="card">
+                <h5 class="card-header d-flex justify-content-between align-items-center">
+                    <span>Son Yüklenen Dosyalar</span>
+                    <a href="/Admin/Files" class="btn btn-primary btn-sm">Tümünü Gör</a>
+                </h5>
+                <div class="table-responsive text-nowrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Dosya Adı</th>
+                                <th>Kategori</th>
+                                <th>Yükleyen</th>
+                                <th>Yüklenme Tarihi</th>
+                                <th>İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0" id="recentFiles">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Son Eklenen Kategoriler -->
+        <div class="col-12 col-md-8 col-lg-4 order-3 order-md-2">
+            <div class="card">
+                <h5 class="card-header d-flex justify-content-between align-items-center">
+                    <span>Son Eklenen Kategoriler</span>
+                    <a href="/Admin/Categories" class="btn btn-primary btn-sm">Tümünü Gör</a>
+                </h5>
+                <div class="table-responsive text-nowrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Kategori Adı</th>
+                                <th>Dosya Sayısı</th>
+                            </tr>
+                        </thead>
+                        <tbody class="table-border-bottom-0" id="recentCategories">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Toastr JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script>
+        function checkAuth() {
+            var token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/Admin/Login';
+                return false;
+            }
+            return true;
+        }
+
+        $(document).ready(function () {
+            if (!checkAuth()) return;
+            loadStatistics();
+            loadRecentFiles();
+            loadRecentCategories();
+        });
+
+        function loadStatistics() {
+            if (!checkAuth()) return;
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/File/GetCount',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                success: function (response) {
+                    $('#totalFiles').text(response.count);
+                },
+                error: function (xhr) {
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    console.error('Dosya sayısı alınırken hata oluştu:', xhr);
+                }
+            });
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/Category/GetCount',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                success: function (response) {
+                    $('#totalCategories').text(response.count);
+                    $('#activeCategoriesCount').text(response.activeCount || 0);
+                },
+                error: function (xhr) {
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    console.error('Kategori sayısı alınırken hata oluştu:', xhr);
+                }
+            });
+
+            // Son 30 günde yüklenen dosya sayısı
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/File/GetRecentCount',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                success: function (response) {
+                    $('#recentFilesCount').text(response.count || 0);
+                },
+                error: function (xhr) {
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    console.error('Son dosya sayısı alınırken hata oluştu:', xhr);
+                }
+            });
+        }
+
+        function loadRecentFiles() {
+            if (!checkAuth()) return;
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/File/GetRecent',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                success: function (files) {
+                    var html = '';
+                    files.forEach(function (file) {
+                        html += '<tr>' +
+                            '<td>' + (file.fileName || '-') + '</td>' +
+                            '<td>' + (file.category ? file.category.name : '-') + '</td>' +
+                            '<td>' + (file.user ? file.user.userName : '-') + '</td>' +
+                            '<td>' + (file.created ? new Date(file.created).toLocaleDateString('tr-TR') : '-') + '</td>' +
+                            '<td>' +
+                            '<div class="dropdown">' +
+                            '<button class="btn p-0" type="button" data-bs-toggle="dropdown">' +
+                            '<i class="bx bx-dots-vertical-rounded"></i>' +
+                            '</button>' +
+                            '<ul class="dropdown-menu">' +
+                            '<li><a class="dropdown-item" href="/Admin/Files/Edit/' + file.id + '"><i class="bx bx-edit-alt me-1"></i> Düzenle</a></li>' +
+                            '<li><a class="dropdown-item" href="javascript:void(0);" onclick="deleteFile(' + file.id + ')"><i class="bx bx-trash me-1"></i> Sil</a></li>' +
+                            '</ul>' +
+                            '</div>' +
+                            '</td>' +
+                            '</tr>';
+                    });
+                    $('#recentFiles').html(html);
+                },
+                error: function (xhr) {
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    console.error('Son dosyalar yüklenirken hata oluştu:', xhr);
+                    toastr.error('Dosyalar yüklenirken bir hata oluştu');
+                }
+            });
+        }
+
+        function loadRecentCategories() {
+            if (!checkAuth()) return;
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/Category/GetRecent',
+                type: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                success: function (categories) {
+                    console.log('API\'den gelen ham kategori verileri:', JSON.stringify(categories, null, 2));
+                    
+                    var html = '';
+                    if (categories && categories.length > 0) {
+                        categories.forEach(function (category) {
+                            console.log('İşlenen kategori detayları:', {
+                                id: category.id,
+                                name: category.name,
+                                productCount: category.productCount
+                            });
+                            
+                            var categoryName = category.name || '-';
+                            var productCount = category.productCount || 0;
+                            
+                            html += '<tr>' +
+                                '<td><a href="/Files?catId=' + category.id + '">' + categoryName + '</a></td>' +
+                                '<td>' + productCount + '</td>' +
+                                '</tr>';
+                        });
+                    } else {
+                        html = '<tr><td colspan="2" class="text-center">Henüz kategori bulunmuyor</td></tr>';
+                    }
+                    
+                    console.log('Oluşturulan HTML:', html);
+                    $('#recentCategories').html(html);
+                },
+                error: function (xhr) {
+                    console.error('Kategori verileri alınırken hata:', xhr.responseText);
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    toastr.error('Kategoriler yüklenirken bir hata oluştu');
+                }
+            });
+        }
+
+        function deleteFile(id) {
+            if (!confirm('Bu dosyayı silmek istediğinizden emin misiniz?')) return;
+
+            $.ajax({
+                url: '@ViewBag.ApiBaseURL/File/' + id,
+                type: 'DELETE',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                success: function () {
+                    toastr.success('Dosya başarıyla silindi');
+                    loadStatistics();
+                    loadRecentFiles();
+                },
+                error: function (xhr) {
+                    if (xhr.status === 401) {
+                        localStorage.removeItem('token');
+                        window.location.href = '/Admin/Login';
+                        return;
+                    }
+                    toastr.error('Dosya silinirken bir hata oluştu');
+                    console.error('Dosya silinirken hata oluştu:', xhr);
+                }
+            });
+        }
+    </script>
+} 

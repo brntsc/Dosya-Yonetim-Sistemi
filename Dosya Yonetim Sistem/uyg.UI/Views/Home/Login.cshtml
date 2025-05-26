@@ -1,0 +1,85 @@
+﻿@{
+    ViewData["Title"] = "Giriş";
+}
+
+<div class="row">
+    <div class="col-md-4 offset-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3>Giriş</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Kullanıcı Adı</label>
+                    <input type="text" class="form-control" id="txtUserName" />
+                </div>
+                <div class="mb-3">
+                    <label>Şifre</label>
+                    <input type="password" class="form-control" id="txtPassword" />
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary" id="btnLogin">Giriş Yap</button>
+                    <div class="alert mt-3" id="divResult"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            var apiBaseUrl = "@ViewBag.ApiBaseURL";
+
+            $("#btnLogin").click(function () {
+                if ($("#txtUserName").val() == "" || $("#txtUserName").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Kullanıcı Adı Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                if ($("#txtPassword").val() == "" || $("#txtPassword").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Şifre Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var login = {
+                    userName: $("#txtUserName").val(),
+                    password: $("#txtPassword").val()
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/User/SignIn",
+                    type: "POST",
+                    data: JSON.stringify(login),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            localStorage.setItem("token", d.data);
+                            location.href = "/";
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Giriş yapılırken hata:", d);
+                    }
+                });
+            });
+        });
+    </script>
+}

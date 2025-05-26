@@ -1,0 +1,13 @@
+﻿@{
+    var controller = ViewContext.RouteData.Values["controller"].ToString();
+    var action = ViewContext.RouteData.Values["action"].ToString();
+
+    if (controller == "Admin" && action == "Login")
+    {
+        Layout = null;
+    }
+    else
+    {
+        Layout = "_AdminLayout";
+    }
+}

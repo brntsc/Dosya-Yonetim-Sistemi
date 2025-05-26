@@ -1,0 +1,618 @@
+﻿@{
+    ViewData["Title"] = "Products";
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Ürünler</h3>
+            </div>
+            <div class="card-body">
+                <h4><a href="/Categories">Kategoriler</a> | <span id ="catName"></span></h4>
+                <table class="table" id="tbProductList">
+                    <thead>
+                        <tr>
+                            <th>Fotoğraf</th>
+                            <th>Adı</th>
+                            <th>Fiyatı</th>
+                            <th>Kategori</th>
+                            <th>Ekleyen</th>
+                           @*  <th>Kayıt Tarihi</th>
+                            <th>Düzenleme Tarihi</th> *@
+                            <th>Durumu</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+
+
+            </div>
+            <div class="card-footer"></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+
+        <div class="card">
+            <div class="card-header"><h4>Ürün Ekle - Güncelle</h4></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Ürün Adı</label>
+                    <input type="hidden" class="form-control" id="txtId" />
+                    <input type="text" class="form-control" id="txtName" />
+                </div>
+                <div class="mb-3">
+                    <label>Fiyatı</label>
+                   
+                    <input type="text" class="form-control" id="txtPrice" />
+                </div>
+                <div class="mb-3">
+                    <label>Kategori</label>
+
+                    <select class="form-control" id="cbCategoryId">
+                        <option>Seçiniz</option>
+                    </select>
+                </div>  <div class="mb-3">
+                    <label>Açıklama</label>
+
+                    <textarea class="form-control" id="txtDescription" rows="3" ></textarea>
+                </div>               <div class="mb-3">
+
+                    <input type="checkbox" class="form-check-inline" id="cbIsActive" />
+                    <label>Aktif</label>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-circle" title="Kaydet" id="btnSave"><i class="fa fa-save"></i></button>
+                    <button class="btn btn-secondary btn-circle" title="Vazgeç" id="btnCancel"><i class="fa fa-arrow-left"></i></button>
+                    <button class="btn btn-warning btn-circle" title="Düzenle" id="btnEdit"><i class="fa fa-edit"></i></button>
+                    <button class="btn btn-danger btn-circle" title="Sil" id="btnDelete"><i class="fa fa-trash"></i></button>
+
+
+                    <div class="alert mt-3" id="divResult"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h3 class="modal-title fs-5" id="exampleModalLabel">Ürün Fotoğrafı Güncelle</h3>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <img src="" id="productPicture" class="img-profile rounded-circle" style="width:200px" />
+                <input id="fileInput" type="file" accept="image/gif, image/jpeg, image/png" class="btn btn-primary" />
+                <div id="divResultUpload"></div>
+            </div>
+            <div class="modal-footer">
+                
+                <button type="button" class="btn btn-danger" id="btnUploadClose">Kapat</button>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h3 class="modal-title fs-5" id="exampleModalLabel">Üye Bilgileri</h3>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+             <div class="row">
+                    <div class="col-md-6">
+                        <img class="img-fluid" id ="userPhoto" />
+                    </div>
+                    <div class="col-md-6">
+                        <table>
+                        <tr>
+                            <td><b>Adı Soyadı</b></td>
+                            <td><span id= "userFullName"></span></td>
+                        </tr>
+                            <tr>
+                                <td><b>E-Posta</b></td>
+                                <td><span id="userMail"></span></td>
+                            </tr>
+                            <tr>
+                                <td><b>Telefon</b></td>
+                                <td><span id="userPhone"></span></td>
+                            </tr>
+</table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+
+                <button type="button" class="btn btn-danger" id="btnUserClose">Kapat</button>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function(){
+            var apiBaseUrl="@ViewBag.ApiBaseURL";
+            var productId=0;
+             if(localStorage.getItem("token")=="" || localStorage.getItem("token")==null){
+                location.href="/Login";
+                return false;
+            }
+             var  token=localStorage.getItem("token");
+
+
+            var catId="@ViewBag.CatId";
+            GetCategoryById();
+            GetProductList();
+            GetCategoryList();
+            $("#btnCancel").hide();
+            $("#btnEdit").hide();
+            $("#btnDelete").hide();
+
+            function GetProductList(){
+                $.ajax({
+                 url: apiBaseUrl + "/Category/" +catId +"/Products",
+                 type: "GET",
+                 headers: {
+           "Authorization": "Bearer " + token
+           },
+                 success: function (d) {
+                     //console.log(d);
+                        ProductToTable(d)
+                 },
+                 error:  function (d) {},
+
+                });
+            }
+
+               function GetCategoryById(){
+                $.ajax({
+                 url: apiBaseUrl + "/Category/" +catId,
+                 type: "GET",
+                 headers: {
+           "Authorization": "Bearer " + token
+           },
+                 success: function (d) {
+                        $("#catName").html(d.name);
+                 },
+                 error:  function (d) {},
+
+                });
+            }
+
+             function GetCategoryList(){
+                $.ajax({
+                 url: apiBaseUrl + "/Category/",
+                 type: "GET",
+                 headers: {
+           "Authorization": "Bearer " + token
+           },
+                 success: function (d) {
+                       $("#cbCategoryId").empty();
+                       var options="";
+                       $.each(d,function(i,item){
+                           if (item.id==catId){
+                            options+='<option value="'+item.id+'" selected>'+item.name+'</option>';
+                           }else{
+                               options+='<option value="'+item.id+'">'+item.name+'</option>';
+                           }
+                       
+                       });
+                        $("#cbCategoryId").append(options);
+                 },
+                 error:  function (d) {},
+
+                });
+            }
+
+            // Kategori ekleme fonksiyonu
+            function addCategories() {
+                console.log("Kategori ekleme başladı");
+                var categories = [
+                    { 
+                        name: "Kategori1", 
+                        description: "Kategori 1 Açıklaması", 
+                        isActive: true,
+                        created: new Date().toISOString(),
+                        updated: new Date().toISOString()
+                    },
+                    { 
+                        name: "Kategori2", 
+                        description: "Kategori 2 Açıklaması", 
+                        isActive: true,
+                        created: new Date().toISOString(),
+                        updated: new Date().toISOString()
+                    },
+                    { 
+                        name: "Kategori3", 
+                        description: "Kategori 3 Açıklaması", 
+                        isActive: true,
+                        created: new Date().toISOString(),
+                        updated: new Date().toISOString()
+                    }
+                ];
+
+                $.each(categories, function (i, category) {
+                    console.log("Kategori ekleniyor:", category);
+                    console.log("API URL:", apiBaseUrl + "/Category");
+                    console.log("Token:", token);
+                    
+                    $.ajax({
+                        url: apiBaseUrl + "/Category",
+                        type: "POST",
+                        headers: { 
+                            "Authorization": "Bearer " + token,
+                            "Content-Type": "application/json"
+                        },
+                        data: JSON.stringify(category),
+                        success: function (response) {
+                            console.log("Kategori başarıyla eklendi:", response);
+                            GetCategoryList();
+                        },
+                        error: function (error) {
+                            console.error("Kategori eklenirken hata oluştu:", error);
+                            console.error("Hata detayı:", error.responseText);
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html("Kategori eklenirken hata oluştu: " + category.name + "<br>Hata: " + error.responseText)
+                                .fadeOut(3000);
+                        }
+                    });
+                });
+            }
+
+            // Sayfa yüklendiğinde kategorileri ekle
+            $(document).ready(function () {
+                console.log("Sayfa yüklendi, kategoriler kontrol ediliyor");
+                // Önce mevcut kategorileri kontrol et
+                $.ajax({
+                    url: apiBaseUrl + "/Category",
+                    type: "GET",
+                    headers: { "Authorization": "Bearer " + token },
+                    success: function (categories) {
+                        console.log("Mevcut kategoriler:", categories);
+                        if (!categories || categories.length === 0) {
+                            console.log("Hiç kategori yok, yeni kategoriler ekleniyor");
+                            addCategories();
+                        } else {
+                            console.log("Mevcut kategoriler var, yeni kategori eklenmeyecek");
+                            // Kategori listesini güncelle
+                            GetCategoryList();
+                        }
+                    },
+                    error: function (error) {
+                        console.error("Kategoriler kontrol edilirken hata oluştu:", error);
+                        console.error("Hata detayı:", error.responseText);
+                        $("#divResult")
+                            .fadeIn()
+                            .removeClass()
+                            .addClass("alert alert-danger mt-3")
+                            .html("Kategoriler yüklenirken bir hata oluştu: " + error.responseText)
+                            .fadeOut(3000);
+                    }
+                });
+            });
+
+            function ProductToTable(data){
+                        $("#tbProductList tbody").empty();
+                        var row="";
+                        $.each(data,function(i,item){
+                        var bg=item.isActive==true ? 'bg-success': 'bg-danger';
+                        var status=item.isActive==true ? 'Aktif': 'Pasif';
+                           row+="<tr>";
+                           row+='<td><img class="img-fluid btnImg" style="cursor:pointer" src="'+apiBaseUrl+'/Files/ProductPhotos/'+item.photoUrl+'" onerror="this.src=\''+apiBaseUrl+'/Files/ProductPhotos/default.jpg\'" data-id="'+item.id+'"></td>';
+                           row+="<td>"+item.name+"</td>";
+                           row+="<td>"+item.price+"</td>";
+                           row+="<td>"+item.category.name+"</td>";
+                           row+='<td><span class="badge bg-info text-white btnUser" style="cursor:pointer" data-id="'+item.user.id+'">'+item.user.fullName+'</span></td>';
+                           row+="<td><span class='text-white badge " + bg +"'>"+status+"</span></td>";
+                            row+='<td><button class="btn btn-warning btn-circle btnEdit" data-id="'+item.id+'"><i class="fa fa-edit"></i></button></td>';
+                           row+="</tr>";
+                        });
+                              $("#tbProductList tbody").append(row);
+            }
+
+            $("#btnSave").click(function(){
+
+               if($("#txtName").val()=="" || $("#txtName").val()==null){
+                 $("#divResult")
+                 .fadeIn()
+                  .removeClass()
+                  .addClass("alert alert-danger mt-3")
+                   .html("Ürün Adı Giriniz!")
+                   .fadeOut(3000);
+                   return false;
+               }
+               var name=$("#txtName").val();
+               var price=$("#txtPrice").val();
+               var description=$("#txtDescription").val();
+               var categoryId=$("#cbCategoryId").val();
+               var isActive=$("#cbIsActive").is(":checked");
+               var product=new Object();
+               product.name=name;
+               product.price=price;
+               product.description=description;
+               product.categoryId=categoryId;
+               product.IsActive=isActive;
+
+               console.log(product);
+
+                $.ajax({
+               url: apiBaseUrl + "/Product",
+               type: "POST",
+               headers: {
+           "Authorization": "Bearer " + token
+           },
+               data: JSON.stringify(product),
+               contentType: "application/json",
+               success: function (d) {
+        if (d.status){
+            $("#divResult")
+            .fadeIn()
+            .removeClass()
+            .addClass("alert alert-success mt-3")
+            .html(d.message)
+            .fadeOut(3000);
+           GetProductList();
+        }else{
+                   $("#divResult")
+                    .fadeIn()
+                    .removeClass()
+                    .addClass("alert alert-danger mt-3")
+                    .html(d.message)
+                    .fadeOut(3000);
+        }
+
+               },
+               error:  function (d) {},
+
+                        });
+
+                });
+        $(document).on("click",".btnEdit",function(){
+            var id=$(this).attr("data-id");
+
+
+                     $.ajax({
+                       url: apiBaseUrl + "/Product/"+id,
+                       type: "GET",
+                       headers: {
+           "Authorization": "Bearer " + token
+           },
+                       contentType: "application/json",
+                       success: function (d) {
+                            $("#btnSave").hide();
+                            $("#btnCancel").show();
+                            $("#btnEdit").show();
+                            $("#btnDelete").show();
+                            $("#txtId").val(id);
+                            $("#txtName").val(d.name);
+                            $("#txtPrice").val(d.price);
+                            $("#txtDescription").val(d.description);
+                            $("#cbCategoryId").val(d.categoryId);
+                            $("#cbIsActive").prop("checked",d.isActive);
+                       },
+                       error:  function (d) {},
+
+                                });
+        });
+
+        $("#btnCancel").click(function(){
+                 $("#btnCancel").hide();
+                 $("#btnEdit").hide();
+                 $("#btnDelete").hide();
+                 $("#btnSave").show();
+                 $("#txtName").val("");
+                 $("#txtPrice").val("");
+                 $("#txtDescription").val("");
+                 $("#cbCategoryId").val(catId);
+                 $("#txtId").val("");
+                 $("#cbIsActive").prop("checked",false);
+
+        });
+
+                $("#btnEdit").click(function(){
+                           if($("#txtName").val()=="" || $("#txtName").val()==null){
+                                 $("#divResult")
+                                 .fadeIn()
+                                  .removeClass()
+                                  .addClass("alert alert-danger mt-3")
+                                   .html("Kategori Adı Giriniz!")
+                                   .fadeOut(3000);
+                                   return false;
+                               }
+                       var id=$("#txtId").val();
+                       var name=$("#txtName").val();
+                       var price=$("#txtPrice").val();
+                       var description=$("#txtDescription").val();
+                       var categoryId=$("#cbCategoryId").val();
+                       var isActive=$("#cbIsActive").is(":checked");
+                       var product=new Object();
+                       product.id=id;
+                       product.name=name;
+                       product.price=price;
+                       product.description=description;
+                       product.categoryId=categoryId;
+                       product.IsActive=isActive;
+
+                        $.ajax({
+                       url: apiBaseUrl + "/Product",
+                       type: "PUT",
+                       headers: {
+           "Authorization": "Bearer " + token
+           },
+                       data: JSON.stringify(product),
+                       contentType: "application/json",
+                       success: function (d) {
+                        if (d.status){
+                    $("#divResult")
+                    .fadeIn()
+                    .removeClass()
+                    .addClass("alert alert-success mt-3")
+                    .html(d.message)
+                    .fadeOut(3000);
+                   GetProductList();
+                   $("#btnCancel").click();
+                }else{
+                           $("#divResult")
+                            .fadeIn()
+                            .removeClass()
+                            .addClass("alert alert-danger mt-3")
+                            .html(d.message)
+                            .fadeOut(3000);
+                }
+
+                       },
+                       error:  function (d) {},
+
+                                });
+
+                        });
+
+
+
+                $("#btnDelete").click(function(){
+                             var id=$("#txtId").val();
+                          $.ajax({
+                               url: apiBaseUrl + "/Product/"+id,
+                               type: "DELETE",
+                               headers: {
+           "Authorization": "Bearer " + token
+           },
+                               contentType: "application/json",
+                               success: function (d) {
+                                if (d.status){
+                            $("#divResult")
+                            .fadeIn()
+                            .removeClass()
+                            .addClass("alert alert-success mt-3")
+                            .html(d.message)
+                            .fadeOut(3000);
+                           GetProductList();
+                           $("#btnCancel").click();
+                        }else{
+                                   $("#divResult")
+                                    .fadeIn()
+                                    .removeClass()
+                                    .addClass("alert alert-danger mt-3")
+                                    .html(d.message)
+                                    .fadeOut(3000);
+                        }
+
+                               },
+                               error:  function (d) {},
+
+                                        });
+
+                     });
+
+        $(document).on("click",".btnImg",function(){
+            var src=$(this).attr("src");
+             productId=$(this).attr("data-id");
+            $("#productPicture").attr("src",src);
+        $("#productModal").modal("show");
+        
+        });
+        $("#fileInput").change(function () {
+                var files = $(this).prop('files');
+                console.log(files);
+                if (files && files[0]) {
+                    var picExt = ".jpg";
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        $('#productPicture').attr('src', e.target.result);
+                        ProductPicUpdate(e.target.result, picExt);
+                    };
+                    reader.readAsDataURL(files[0]);
+                }
+            });
+
+            function ProductPicUpdate(picData, picExt) {
+
+                var upload = new Object();
+                upload.picData = picData;
+                upload.picExt = picExt;
+                upload.productId = productId;
+
+                $.ajax({
+                    url: apiBaseUrl + "/Product/Upload/",
+                    type: "Post",
+                    contentType: "application/json",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(upload),
+                    success: function (data) {
+                        console.log(data);
+                        if (data.status) {
+                            $("#divResultUpload")
+                                .show()
+                                .removeClass()
+                                .addClass("alert alert-success")
+                                .html(data.message)
+                                .fadeOut(5000);
+
+                        } else {
+                            $("#divResultUpload")
+                                .show()
+                                .removeClass()
+                                .addClass("alert alert-danger")
+                                .html(data.message)
+                                .fadeOut(5000);
+                        }
+
+                    },
+                    error: function () { }
+                });
+            }
+
+
+            $("#btnUploadClose").click(function(){
+            $("#productModal").modal("hide");
+            GetProductList();
+            });
+
+            $(document).on("click",".btnUser",function(){
+                userId=$(this).attr("data-id");
+                $.ajax({
+                    url: apiBaseUrl + "/User/GetById/"+userId,
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    contentType: "application/json",
+                    success: function (d) {
+                        var src = apiBaseUrl + "/Files/UserPhotos/" + (d.photoUrl || "default.jpg");
+                        $("#userPhoto").attr("src", src);
+                        $("#userFullName").html(d.fullName);
+                        $("#userMail").html(d.email);
+                        $("#userPhone").html(d.phoneNumber);
+                        $("#userModal").modal("show");
+                    },
+                    error: function (d) {
+                        console.error("Kullanıcı bilgileri alınamadı:", d);
+                    }
+                });
+            });
+
+             $("#btnUserClose").click(function(){
+            $("#userModal").modal("hide");
+            });
+          });
+
+
+    </script>
+}
+

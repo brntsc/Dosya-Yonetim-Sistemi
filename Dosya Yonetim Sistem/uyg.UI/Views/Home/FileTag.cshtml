@@ -1,0 +1,266 @@
+@{
+    ViewData["Title"] = "Etiketler";
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Etiketler</h3>
+            </div>
+            <div class="card-body">
+                <table class="table" id="tbTagList">
+                    <thead>
+                        <tr>
+                            <th>Etiket Adı</th>
+                            <th>Dosya Sayısı</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card-footer"></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header"><h4>Etiket Ekle - Güncelle</h4></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Etiket Adı</label>
+                    <input type="hidden" class="form-control" id="txtId" />
+                    <input type="text" class="form-control" id="txtTagName" />
+                </div>
+                <div class="mb-3">
+                    <input type="checkbox" class="form-check-inline" id="cbIsActive" />
+                    <label>Aktif</label>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary btn-circle" title="Kaydet" id="btnSave"><i class="fa fa-save"></i></button>
+                    <button class="btn btn-secondary btn-circle" title="Vazgeç" id="btnCancel"><i class="fa fa-arrow-left"></i></button>
+                    <button class="btn btn-warning btn-circle" title="Düzenle" id="btnEdit"><i class="fa fa-edit"></i></button>
+                    <button class="btn btn-danger btn-circle" title="Sil" id="btnDelete"><i class="fa fa-trash"></i></button>
+                    <div class="alert mt-3" id="divResult"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            var apiBaseUrl = "@ViewBag.ApiBaseURL";
+            if (localStorage.getItem("token") == "" || localStorage.getItem("token") == null) {
+                location.href = "/Login";
+                return false;
+            }
+            var token = localStorage.getItem("token");
+
+            GetTagList();
+            $("#btnCancel").hide();
+            $("#btnEdit").hide();
+            $("#btnDelete").hide();
+
+            function GetTagList() {
+                $.ajax({
+                    url: apiBaseUrl + "/FileTag",
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    success: function (d) {
+                        TagToTable(d);
+                    },
+                    error: function (d) {
+                        console.error("Etiketler yüklenirken hata:", d);
+                    }
+                });
+            }
+
+            function TagToTable(data) {
+                $("#tbTagList tbody").empty();
+                var row = "";
+                $.each(data, function (i, item) {
+                    var bg = item.isActive == true ? 'bg-success' : 'bg-danger';
+                    var status = item.isActive == true ? 'Aktif' : 'Pasif';
+                    row += "<tr>";
+                    row += "<td>" + item.tagName + "</td>";
+                    row += "<td>" + item.fileCount + "</td>";
+                    row += "<td><span class='text-white badge " + bg + "'>" + status + "</span></td>";
+                    row += '<td><button class="btn btn-warning btn-circle btnEdit" data-id="' + item.id + '"><i class="fa fa-edit"></i></button></td>';
+                    row += "</tr>";
+                });
+                $("#tbTagList tbody").append(row);
+            }
+
+            $("#btnSave").click(function () {
+                if ($("#txtTagName").val() == "" || $("#txtTagName").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Etiket Adı Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var tag = {
+                    tagName: $("#txtTagName").val(),
+                    isActive: $("#cbIsActive").is(":checked")
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/FileTag",
+                    type: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(tag),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetTagList();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Etiket kaydedilirken hata:", d);
+                    }
+                });
+            });
+
+            $(document).on("click", ".btnEdit", function () {
+                var id = $(this).attr("data-id");
+                $.ajax({
+                    url: apiBaseUrl + "/FileTag/" + id,
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    contentType: "application/json",
+                    success: function (d) {
+                        $("#btnSave").hide();
+                        $("#btnCancel").show();
+                        $("#btnEdit").show();
+                        $("#btnDelete").show();
+                        $("#txtId").val(id);
+                        $("#txtTagName").val(d.tagName);
+                        $("#cbIsActive").prop("checked", d.isActive);
+                    },
+                    error: function (d) {
+                        console.error("Etiket bilgileri alınamadı:", d);
+                    }
+                });
+            });
+
+            $("#btnCancel").click(function () {
+                $("#btnCancel").hide();
+                $("#btnEdit").hide();
+                $("#btnDelete").hide();
+                $("#btnSave").show();
+                $("#txtTagName").val("");
+                $("#txtId").val("");
+                $("#cbIsActive").prop("checked", false);
+            });
+
+            $("#btnEdit").click(function () {
+                if ($("#txtTagName").val() == "" || $("#txtTagName").val() == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Etiket Adı Giriniz!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var tag = {
+                    id: $("#txtId").val(),
+                    tagName: $("#txtTagName").val(),
+                    isActive: $("#cbIsActive").is(":checked")
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/FileTag",
+                    type: "PUT",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(tag),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetTagList();
+                            $("#btnCancel").click();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Etiket güncellenirken hata:", d);
+                    }
+                });
+            });
+
+            $("#btnDelete").click(function () {
+                var id = $("#txtId").val();
+                $.ajax({
+                    url: apiBaseUrl + "/FileTag/" + id,
+                    type: "DELETE",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetTagList();
+                            $("#btnCancel").click();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Etiket silinirken hata:", d);
+                    }
+                });
+            });
+        });
+    </script>
+} 

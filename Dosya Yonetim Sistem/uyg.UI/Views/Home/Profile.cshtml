@@ -1,0 +1,179 @@
+﻿@{
+    ViewData["Title"] = "Profil";
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>Profil Bilgileri</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label>Kullanıcı Adı</label>
+                    <input type="text" class="form-control" id="txtUserName" readonly />
+                </div>
+                <div class="mb-3">
+                    <label>Ad</label>
+                    <input type="text" class="form-control" id="txtFirstName" />
+                </div>
+                <div class="mb-3">
+                    <label>Soyad</label>
+                    <input type="text" class="form-control" id="txtLastName" />
+                </div>
+                <div class="mb-3">
+                    <label>E-posta</label>
+                    <input type="email" class="form-control" id="txtEmail" />
+                </div>
+                <div class="mb-3">
+                    <label>Telefon</label>
+                    <input type="tel" class="form-control" id="txtPhoneNumber" />
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary" id="btnUpdate">Güncelle</button>
+                    <div class="alert mt-3" id="divResult"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3>Profil Fotoğrafı</h3>
+            </div>
+            <div class="card-body text-center">
+                <img src="" id="imgProfile" class="img-fluid rounded-circle mb-3" style="max-width: 200px;" />
+                <div class="mb-3">
+                    <input type="file" class="form-control" id="filePhoto" accept="image/*" />
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-primary" id="btnUpload">Yükle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            var apiBaseUrl = "@ViewBag.ApiBaseURL";
+            if (localStorage.getItem("token") == "" || localStorage.getItem("token") == null) {
+                location.href = "/Login";
+                return false;
+            }
+            var token = localStorage.getItem("token");
+
+            GetUserInfo();
+
+            function GetUserInfo() {
+                $.ajax({
+                    url: apiBaseUrl + "/User/GetById",
+                    type: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    success: function (d) {
+                        $("#txtUserName").val(d.userName);
+                        $("#txtFirstName").val(d.firstName);
+                        $("#txtLastName").val(d.lastName);
+                        $("#txtEmail").val(d.email);
+                        $("#txtPhoneNumber").val(d.phoneNumber);
+                        $("#imgProfile").attr("src", apiBaseUrl + "/Files/UserPhotos/" + d.photo);
+                    },
+                    error: function (d) {
+                        console.error("Kullanıcı bilgileri alınamadı:", d);
+                    }
+                });
+            }
+
+            $("#btnUpdate").click(function () {
+                var user = {
+                    userName: $("#txtUserName").val(),
+                    firstName: $("#txtFirstName").val(),
+                    lastName: $("#txtLastName").val(),
+                    email: $("#txtEmail").val(),
+                    phoneNumber: $("#txtPhoneNumber").val()
+                };
+
+                $.ajax({
+                    url: apiBaseUrl + "/User/Update",
+                    type: "PUT",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: JSON.stringify(user),
+                    contentType: "application/json",
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Kullanıcı güncellenirken hata:", d);
+                    }
+                });
+            });
+
+            $("#btnUpload").click(function () {
+                var file = $("#filePhoto")[0].files[0];
+                if (file == null) {
+                    $("#divResult")
+                        .fadeIn()
+                        .removeClass()
+                        .addClass("alert alert-danger mt-3")
+                        .html("Lütfen bir fotoğraf seçin!")
+                        .fadeOut(3000);
+                    return false;
+                }
+
+                var formData = new FormData();
+                formData.append("file", file);
+
+                $.ajax({
+                    url: apiBaseUrl + "/User/Upload",
+                    type: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    },
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function (d) {
+                        if (d.status) {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-success mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                            GetUserInfo();
+                        } else {
+                            $("#divResult")
+                                .fadeIn()
+                                .removeClass()
+                                .addClass("alert alert-danger mt-3")
+                                .html(d.message)
+                                .fadeOut(3000);
+                        }
+                    },
+                    error: function (d) {
+                        console.error("Fotoğraf yüklenirken hata:", d);
+                    }
+                });
+            });
+        });
+    </script>
+}
